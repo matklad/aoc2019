@@ -13,9 +13,20 @@ fn main() -> Result<()> {
         .split(',')
         .map(|it| it.parse::<u64>())
         .collect::<Result<Vec<_>, _>>()?;
-    let memory = run(memory);
-    println!("{:?}", memory);
-    Ok(())
+
+    for noun in 0..100 {
+        for verb in 0..100 {
+            let mut memory = memory.clone();
+            memory[1] = noun;
+            memory[2] = verb;
+            let memory = run(memory);
+            if memory[0] == 19690720 {
+                println!("{}", noun * 100 + verb);
+                return Ok(());
+            }
+        }
+    }
+    panic!("no answer")
 }
 
 fn run(mut mem: Vec<u64>) -> Vec<u64> {
