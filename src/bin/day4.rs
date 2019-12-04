@@ -4,16 +4,16 @@ type Code = [u8; 6];
 
 fn main() {
     let t = Instant::now();
-    let res = brute_force(236491, 713787);
-    println!("{} {:?}", res, t.elapsed());
-
-    let t = Instant::now();
-    let res = faster([2, 3, 6, 6, 6, 6], [7; 6]);
-    println!("{} {:?}", res, t.elapsed());
-
-    let t = Instant::now();
-    let res = faster_manual_inline([2, 3, 6, 6, 6, 6], [7; 6]);
-    println!("{} {:?}", res, t.elapsed());
+    for _ in 0..1000 {
+        match std::env::args().nth(1).unwrap().as_str() {
+            "1" => brute_force(236491, 713787),
+            "2" => faster([2, 3, 6, 6, 6, 6], [7; 6]),
+            "3" => faster_manual_inline([2, 3, 6, 6, 6, 6], [7; 6]),
+            "4" => faster_increment([2, 3, 6, 6, 6, 6], [7; 6]),
+            _ => panic!(),
+        };
+    }
+    eprintln!("{:?}", t.elapsed());
 }
 
 fn to_code(mut code: u32) -> Code {
@@ -114,6 +114,30 @@ fn faster_manual_inline(low: Code, hi: Code) -> u32 {
     match go!(x x x x x x; 0)(&mut code) {
         Err(it) => return it,
         Ok(_) => unreachable!(),
+    }
+}
+
+fn increment(code: &mut Code) {
+    for i in (0..6).rev() {
+        let c = code[i];
+        if c < 9 {
+            code[i..].iter_mut().for_each(|it| *it = c + 1);
+            break;
+        }
+    }
+}
+
+fn faster_increment(lo: Code, hi: Code) -> u32 {
+    let mut code = lo;
+    let mut res = 0;
+    loop {
+        if verify_repeat(code) {
+            res += 1;
+        }
+        if code == hi {
+            return res;
+        }
+        increment(&mut code);
     }
 }
 
