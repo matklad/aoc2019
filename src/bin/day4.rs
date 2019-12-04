@@ -36,8 +36,15 @@ fn verify_increasing(code: Code) -> bool {
 }
 
 fn verify_repeat(code: Code) -> bool {
-    let mut pairs = code.iter().copied().zip(code[1..].iter().copied());
-    pairs.any(|(d1, d2)| d1 == d2)
+    for i in 0..=4 {
+        if code[i] == code[i + 1]
+            && (i == 0 || code[i - 1] != code[i])
+            && (i == 4 || code[i + 2] != code[i])
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn brute_force(low: u32, hi: u32) -> u32 {
