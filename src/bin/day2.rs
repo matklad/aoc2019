@@ -11,7 +11,7 @@ fn main() -> Result<()> {
     let memory = line
         .trim()
         .split(',')
-        .map(|it| it.parse::<u64>())
+        .map(|it| it.parse::<i64>())
         .collect::<Result<Vec<_>, _>>()?;
 
     for noun in 0..100 {
@@ -29,8 +29,8 @@ fn main() -> Result<()> {
     panic!("no answer")
 }
 
-fn run(mut mem: Vec<u64>) -> Vec<u64> {
-    IntCode::new(&mut mem).run();
+fn run(mut mem: Vec<i64>) -> Vec<i64> {
+    IntCode::new(&mut mem).run().unwrap();
     mem
 }
 
