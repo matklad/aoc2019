@@ -1,4 +1,4 @@
-use aoc::{parse_memory, IntCode, Io, Result, StdIo};
+use aoc::{parse_memory, IntCode, Result, StdIo};
 
 fn main() -> Result<()> {
     let memory = std::env::args().nth(1).ok_or("no memory specified")?;
@@ -30,7 +30,7 @@ fn test_examples() {
         }
     }
 
-    impl Io for MemIo {
+    impl aoc::Io for MemIo {
         fn read(&mut self) -> Result<i64> {
             let res = self.input.pop().ok_or("EOF")?;
             Ok(res)
@@ -59,22 +59,22 @@ fn test_examples() {
         }
     }
 
-    // check(
-    //     vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8],
-    //     vec![(0, 0), (7, 0), (8, 1), (92, 0)],
-    // );
-    // check(
-    //     vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8],
-    //     vec![(0, 1), (7, 1), (8, 0), (92, 0)],
-    // );
-    // check(
-    //     vec![3, 3, 1108, -1, 8, 3, 4, 3, 99],
-    //     vec![(0, 0), (7, 0), (8, 1), (92, 0)],
-    // );
-    // check(
-    //     vec![3, 3, 1107, -1, 8, 3, 4, 3, 99],
-    //     vec![(0, 1), (7, 1), (8, 0), (92, 0)],
-    // );
+    check(
+        vec![3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8],
+        vec![(0, 0), (7, 0), (8, 1), (92, 0)],
+    );
+    check(
+        vec![3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8],
+        vec![(0, 1), (7, 1), (8, 0), (92, 0)],
+    );
+    check(
+        vec![3, 3, 1108, -1, 8, 3, 4, 3, 99],
+        vec![(0, 0), (7, 0), (8, 1), (92, 0)],
+    );
+    check(
+        vec![3, 3, 1107, -1, 8, 3, 4, 3, 99],
+        vec![(0, 1), (7, 1), (8, 0), (92, 0)],
+    );
 
     check(
         vec![3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],

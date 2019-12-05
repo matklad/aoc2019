@@ -1,7 +1,4 @@
-use std::{
-    convert::TryFrom,
-    io::{self, Write},
-};
+use std::io::{self, Write};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -91,7 +88,6 @@ impl<'a> IntCode<'a> {
                 self.io.write(res)?;
             }
         }
-        self.ip += op.code_len() as i64;
         Ok(true)
     }
     fn load(&self, value: Value) -> Result<i64> {
@@ -115,17 +111,7 @@ impl<'a> IntCode<'a> {
         Ok(())
     }
 
-    fn decode(&self) -> Result<Op> {
-        macro_rules! args {
-            ($n:expr) => {{
-                let bytes = self
-                    .mem
-                    .get((self.ip as usize) + 1..(self.ip as usize) + 1 + $n)
-                    .ok_or("invalid op args")?;
-                <[i64; $n]>::try_from(bytes).unwrap()
-            }};
-        }
-
+    fn decode(&mut self) -> Result<Op> {
         fn to_value(modes: &mut i64, value: i64) -> Result<Value> {
             let res = match *modes % 10 {
                 0 => Value::Addr(value),
@@ -138,6 +124,26 @@ impl<'a> IntCode<'a> {
 
         let op_code = self.load_addr(self.ip)?;
         let (mut modes, op_code) = (op_code / 100, op_code % 100);
+
+        macro_rules! args {
+            ($($m:ident)*) => {{
+                let res = ($(args!(@ $m),)*);
+                if modes != 0 {
+                    Err("invalid add mode")?
+                }
+                self.ip += 1;
+                res
+            }};
+            (@ v) => {{
+                self.ip += 1;
+                to_value(&mut modes, self.load_addr(self.ip)?)?
+            }};
+            (@ a) => {{
+                self.ip += 1;
+                self.load_addr(self.ip)?
+            }};
+        }
+
         let res = match op_code {
             1 | 2 | 7 | 8 => {
                 let op = match op_code {
@@ -147,18 +153,15 @@ impl<'a> IntCode<'a> {
                     8 => ArithOp::Equals,
                     _ => unreachable!(),
                 };
-                let [lhs, rhs, dst] = args!(3);
-                let lhs = to_value(&mut modes, lhs)?;
-                let rhs = to_value(&mut modes, rhs)?;
+                let (lhs, rhs, dst) = args!(v v a);
                 Op::Arith { op, lhs, rhs, dst }
             }
             3 => {
-                let [dst] = args!(1);
+                let (dst,) = args!(a);
                 Op::Input { dst }
             }
             4 => {
-                let [src] = args!(1);
-                let src = to_value(&mut modes, src)?;
+                let (src,) = args!(v);
                 Op::Output { src }
             }
             5 | 6 => {
@@ -167,17 +170,12 @@ impl<'a> IntCode<'a> {
                     6 => JumpOp::IfFalse,
                     _ => unreachable!(),
                 };
-                let [cond, tgt] = args!(2);
-                let cond = to_value(&mut modes, cond)?;
-                let tgt = to_value(&mut modes, tgt)?;
+                let (cond, tgt) = args!(v v);
                 Op::Jump { op, cond, tgt }
             }
             99 => Op::Halt,
             _ => Err(format!("invalid op code: {}", op_code))?,
         };
-        if modes != 0 {
-            Err("invalid add mode")?
-        }
         Ok(res)
     }
 }
@@ -216,17 +214,6 @@ enum ArithOp {
     Mul,
     LessThan,
     Equals,
-}
-
-impl Op {
-    fn code_len(&self) -> u8 {
-        match self {
-            Op::Halt => 1,
-            Op::Arith { .. } => 4,
-            Op::Input { .. } | Op::Output { .. } => 2,
-            Op::Jump { .. } => 3,
-        }
-    }
 }
 
 impl ArithOp {
