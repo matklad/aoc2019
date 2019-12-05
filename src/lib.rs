@@ -50,7 +50,7 @@ impl Io for StdIo {
 pub struct IntCode<'a> {
     io: &'a mut dyn Io,
     mem: &'a mut [i64],
-    ip: usize,
+    ip: i64,
 }
 
 impl<'a> IntCode<'a> {
@@ -71,6 +71,17 @@ impl<'a> IntCode<'a> {
                 let res = op.eval(lhs, rhs);
                 self.store(dst, res)?;
             }
+            Op::Jump { op, cond, tgt } => {
+                let cond = self.load(cond)?;
+                let jump = match op {
+                    JumpOp::IfTrue => cond != 0,
+                    JumpOp::IfFalse => cond == 0,
+                };
+                if jump {
+                    self.ip = self.load(tgt)?;
+                    return Ok(true);
+                }
+            }
             Op::Input { dst } => {
                 let res = self.io.read()?;
                 self.store(dst, res)?;
@@ -80,20 +91,22 @@ impl<'a> IntCode<'a> {
                 self.io.write(res)?;
             }
         }
-        self.ip += op.code_len();
+        self.ip += op.code_len() as i64;
         Ok(true)
     }
     fn load(&self, value: Value) -> Result<i64> {
         match value {
             Value::Immediate(it) => Ok(it),
-            Value::Addr(addr) => {
-                if !(0 <= addr && addr <= self.mem.len() as i64) {
-                    Err(format!("invalid addr on load: {}", addr))?
-                }
-                Ok(self.mem[addr as usize])
-            }
+            Value::Addr(addr) => self.load_addr(addr),
         }
     }
+    fn load_addr(&self, addr: i64) -> Result<i64> {
+        if !(0 <= addr && addr <= self.mem.len() as i64) {
+            Err(format!("invalid addr on load: {}", addr))?
+        }
+        Ok(self.mem[addr as usize])
+    }
+
     fn store(&mut self, addr: i64, value: i64) -> Result<()> {
         if !(0 <= addr && addr <= self.mem.len() as i64) {
             Err(format!("invalid addr on store: {}", addr))?
@@ -107,7 +120,7 @@ impl<'a> IntCode<'a> {
             ($n:expr) => {{
                 let bytes = self
                     .mem
-                    .get(self.ip + 1..self.ip + 1 + $n)
+                    .get((self.ip as usize) + 1..(self.ip as usize) + 1 + $n)
                     .ok_or("invalid op args")?;
                 <[i64; $n]>::try_from(bytes).unwrap()
             }};
@@ -123,13 +136,15 @@ impl<'a> IntCode<'a> {
             Ok(res)
         }
 
-        let op_code = self.mem[self.ip];
+        let op_code = self.load_addr(self.ip)?;
         let (mut modes, op_code) = (op_code / 100, op_code % 100);
         let res = match op_code {
-            1 | 2 => {
+            1 | 2 | 7 | 8 => {
                 let op = match op_code {
                     1 => ArithOp::Add,
                     2 => ArithOp::Mul,
+                    7 => ArithOp::LessThan,
+                    8 => ArithOp::Equals,
                     _ => unreachable!(),
                 };
                 let [lhs, rhs, dst] = args!(3);
@@ -145,6 +160,17 @@ impl<'a> IntCode<'a> {
                 let [src] = args!(1);
                 let src = to_value(&mut modes, src)?;
                 Op::Output { src }
+            }
+            5 | 6 => {
+                let op = match op_code {
+                    5 => JumpOp::IfTrue,
+                    6 => JumpOp::IfFalse,
+                    _ => unreachable!(),
+                };
+                let [cond, tgt] = args!(2);
+                let cond = to_value(&mut modes, cond)?;
+                let tgt = to_value(&mut modes, tgt)?;
+                Op::Jump { op, cond, tgt }
             }
             99 => Op::Halt,
             _ => Err(format!("invalid op code: {}", op_code))?,
@@ -177,20 +203,28 @@ enum Op {
     Output {
         src: Value,
     },
+    Jump {
+        op: JumpOp,
+        cond: Value,
+        tgt: Value,
+    },
 }
 
 #[derive(Clone, Copy)]
 enum ArithOp {
     Add,
     Mul,
+    LessThan,
+    Equals,
 }
 
 impl Op {
-    fn code_len(&self) -> usize {
+    fn code_len(&self) -> u8 {
         match self {
             Op::Halt => 1,
             Op::Arith { .. } => 4,
             Op::Input { .. } | Op::Output { .. } => 2,
+            Op::Jump { .. } => 3,
         }
     }
 }
@@ -200,6 +234,14 @@ impl ArithOp {
         match self {
             ArithOp::Add => lhs + rhs,
             ArithOp::Mul => lhs * rhs,
+            ArithOp::LessThan => (lhs < rhs) as i64,
+            ArithOp::Equals => (lhs == rhs) as i64,
         }
     }
+}
+
+#[derive(Clone, Copy)]
+enum JumpOp {
+    IfTrue,
+    IfFalse,
 }
