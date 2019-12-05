@@ -1,19 +1,15 @@
 use std::io::stdin;
 
-use aoc::{IntCode, Result};
+use aoc::{parse_memory, IntCode, Result, StdIo};
 
 fn main() -> Result<()> {
     let line = {
         let mut buf = String::new();
-        stdin().read_line(&mut buf)?;
+        io::stdin().read_line(&mut buf)?;
         buf
     };
-    let memory = line
-        .trim()
-        .split(',')
-        .map(|it| it.parse::<i64>())
-        .collect::<Result<Vec<_>, _>>()?;
 
+    let memory = parse_memory(line.as_str())?;
     for noun in 0..100 {
         for verb in 0..100 {
             let mut memory = memory.clone();
@@ -30,7 +26,8 @@ fn main() -> Result<()> {
 }
 
 fn run(mut mem: Vec<i64>) -> Vec<i64> {
-    IntCode::new(&mut mem).run().unwrap();
+    let mut io = StdIo::new();
+    IntCode::new(&mut io, &mut mem).run().unwrap();
     mem
 }
 
