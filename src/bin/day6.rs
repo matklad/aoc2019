@@ -7,29 +7,85 @@ use std::{
 fn main() -> aoc::Result<()> {
     let mut buf = String::new();
     stdin().read_to_string(&mut buf)?;
-    let tree = parse(&buf);
-    println!("{}", calculate_orbits(&tree));
+    let (tree, idx) = parse(&buf);
+    let me = idx["YOU"];
+    let santa = idx["SAN"];
+    println!("{}", calculate_dist(&tree, me, santa) - 2);
     Ok(())
 }
 
 fn calculate_orbits(tree: &Tree) -> u64 {
     let (_size, orbits) = go(tree, tree.root());
-    orbits
-}
+    return orbits;
 
-fn go(tree: &Tree, node: NodeId) -> (u64, u64) // (size, orbits)
-{
-    let mut subtree_size = 1;
-    let mut subtree_orbits = 0;
-    for &child in tree[node].children.iter() {
-        let (size, orbits) = go(tree, child);
-        subtree_size += size;
-        subtree_orbits += orbits + size;
+    fn go(tree: &Tree, node: NodeId) -> (u64, u64) // (size, orbits)
+    {
+        let mut subtree_size = 1;
+        let mut subtree_orbits = 0;
+        for &child in tree[node].children.iter() {
+            let (size, orbits) = go(tree, child);
+            subtree_size += size;
+            subtree_orbits += orbits + size;
+        }
+        (subtree_size, subtree_orbits)
     }
-    (subtree_size, subtree_orbits)
 }
 
-fn parse(text: &str) -> Tree {
+fn calculate_dist(tree: &Tree, u: NodeId, v: NodeId) -> u32 {
+    match go(tree, u, v, tree.root()) {
+        Dists::Both(it) => return it,
+        _ => panic!("missing nodes in tree"),
+    }
+
+    #[derive(Clone, Copy)]
+    enum Dists {
+        None,
+        One(u32),
+        Both(u32),
+    }
+
+    impl Dists {
+        fn is_both(&self) -> bool {
+            match self {
+                Dists::Both(_) => true,
+                _ => false,
+            }
+        }
+        fn merge(&mut self, other: Dists) {
+            *self = match (*self, other) {
+                (both @ Dists::Both(_), _) | (_, both @ Dists::Both(_)) => both,
+                (Dists::None, other) | (other, Dists::None) => other,
+                (Dists::One(d1), Dists::One(d2)) => Dists::Both(d1 + d2),
+            }
+        }
+        fn increment(&mut self) {
+            if let Dists::One(d) = self {
+                *d += 1;
+            }
+        }
+    }
+
+    fn go(tree: &Tree, u: NodeId, v: NodeId, node: NodeId) -> Dists {
+        let mut res = Dists::None;
+        if node == u {
+            res.merge(Dists::One(0))
+        }
+        if node == v {
+            res.merge(Dists::One(0))
+        }
+        for &child in tree[node].children.iter() {
+            if res.is_both() {
+                break;
+            }
+            let mut d = go(tree, u, v, child);
+            d.increment();
+            res.merge(d)
+        }
+        res
+    }
+}
+
+fn parse(text: &str) -> (Tree, HashMap<&str, NodeId>) {
     let mut ids = HashMap::new();
 
     let mut tree = Tree::default();
@@ -44,7 +100,7 @@ fn parse(text: &str) -> Tree {
         tree[parent].children.push(child);
     }
 
-    tree
+    (tree, ids)
 }
 
 #[derive(Default)]
@@ -52,7 +108,7 @@ struct Tree {
     nodes: Vec<Node>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct NodeId(u32);
 
 #[derive(Default)]
@@ -86,7 +142,7 @@ impl ops::IndexMut<NodeId> for Tree {
 }
 
 #[test]
-fn test_examples() {
+fn test_example_orbits() {
     let tree = "COM)B
 B)C
 C)D
@@ -98,5 +154,27 @@ D)I
 E)J
 J)K
 K)L";
-    assert_eq!(calculate_orbits(&parse(tree)), 42)
+    let (tree, _ids) = parse(tree);
+    assert_eq!(calculate_orbits(&tree), 42)
+}
+
+#[test]
+fn test_example_dists() {
+    let tree = "COM)B
+B)C
+C)D
+D)E
+E)F
+B)G
+G)H
+D)I
+E)J
+J)K
+K)L
+K)YOU
+I)SAN";
+    let (tree, ids) = parse(tree);
+    let me = ids["YOU"];
+    let santa = ids["SAN"];
+    assert_eq!(calculate_dist(&tree, me, santa) - 2, 4)
 }
