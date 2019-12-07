@@ -15,44 +15,21 @@ fn main() -> Result<()> {
 
 #[test]
 fn test_examples() {
-    struct MemIo {
-        input: Vec<i64>,
-        output: Vec<i64>,
-    }
-
-    impl MemIo {
-        fn new(mut input: Vec<i64>) -> Self {
-            input.reverse();
-            Self {
-                input,
-                output: Vec::new(),
-            }
-        }
-    }
-
-    impl aoc::Io for MemIo {
-        fn read(&mut self) -> Result<i64> {
-            let res = self.input.pop().ok_or("EOF")?;
-            Ok(res)
-        }
-        fn write(&mut self, value: i64) -> Result<()> {
-            self.output.push(value);
-            Ok(())
-        }
-    }
+    use aoc::MemIo;
 
     fn check(memory: Vec<i64>, tests: Vec<(i64, i64)>) {
         for (i, o) in tests {
             let mut mem = memory.clone();
-            let mut io = MemIo::new(vec![i]);
-            let computer = IntCode::new(&mut io, &mut mem);
+            let mut mem_io = MemIo::new(vec![i]);
+            let computer = IntCode::new(&mut mem_io, &mut mem);
             computer.run().unwrap();
+            let output = mem_io.into_output();
             assert_eq!(
-                io.output,
+                output,
                 vec![o],
                 "\nmemory: {:?}\noutput: {:?},\ni: {}\no: {}\n",
                 memory,
-                io.output,
+                output,
                 i,
                 o
             )

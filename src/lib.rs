@@ -44,6 +44,36 @@ impl Io for StdIo {
     }
 }
 
+pub struct MemIo {
+    input: Vec<i64>,
+    output: Vec<i64>,
+}
+
+impl MemIo {
+    pub fn new(mut input: Vec<i64>) -> Self {
+        input.reverse();
+        Self {
+            input,
+            output: Vec::new(),
+        }
+    }
+
+    pub fn into_output(self) -> Vec<i64> {
+        self.output
+    }
+}
+
+impl Io for MemIo {
+    fn read(&mut self) -> Result<i64> {
+        let res = self.input.pop().ok_or("EOF")?;
+        Ok(res)
+    }
+    fn write(&mut self, value: i64) -> Result<()> {
+        self.output.push(value);
+        Ok(())
+    }
+}
+
 pub struct IntCode<'a> {
     io: &'a mut dyn Io,
     mem: &'a mut [i64],
