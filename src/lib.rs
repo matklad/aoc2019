@@ -88,7 +88,7 @@ impl<'a> IntCode<'a> {
         while self.step()? {}
         Ok(())
     }
-    fn step(&mut self) -> Result<bool> {
+    pub fn step(&mut self) -> Result<bool> {
         let op = self.decode()?;
         match op {
             Op::Halt => return Ok(false),

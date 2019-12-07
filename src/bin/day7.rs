@@ -1,6 +1,6 @@
-use std::io::Read;
+use std::{cell::Cell, io::Read};
 
-use aoc::{parse_memory, IntCode, MemIo, Result};
+use aoc::{parse_memory, IntCode, Io, Result};
 
 fn main() -> Result<()> {
     let mut buf = String::new();
@@ -12,26 +12,87 @@ fn main() -> Result<()> {
 }
 
 fn maximize_thrust(program: &[i64]) -> i64 {
-    let mut phases = [0, 1, 2, 3, 4];
+    let mut phases = [5, 6, 7, 8, 9];
     let mut res = i64::min_value();
-    let mut mem = vec![0; program.len()];
-    permutations(&mut phases, |phases| {
-        res = res.max(run(program, &mut mem, phases))
-    });
+    permutations(&mut phases, |phases| res = res.max(run(program, phases)));
     res
 }
 
-fn run(program: &[i64], mem: &mut [i64], phases: &[i64]) -> i64 {
-    let mut res = 0;
-    for phase in phases.iter().copied() {
-        mem.copy_from_slice(program);
-        let mut io = MemIo::new(vec![phase, res]);
-        IntCode::new(&mut io, mem).run().unwrap();
-        let output = io.into_output();
-        assert!(output.len() == 1);
-        res = output[0];
+#[derive(Default)]
+struct SlotIo {
+    slot: Cell<i64>,
+    read: Cell<bool>,
+    write: Cell<bool>,
+}
+
+impl Io for &SlotIo {
+    fn read(&mut self) -> Result<i64> {
+        let res = self.get();
+        self.read.set(true);
+        Ok(res)
     }
-    res
+    fn write(&mut self, value: i64) -> Result<()> {
+        self.set(value);
+        self.write.set(true);
+        Ok(())
+    }
+}
+
+impl SlotIo {
+    fn get(&self) -> i64 {
+        self.slot.get()
+    }
+    fn set(&self, value: i64) {
+        self.slot.set(value)
+    }
+    fn clear_read(&self) -> bool {
+        let res = self.read.get();
+        self.read.set(false);
+        res
+    }
+    fn clear_write(&self) -> bool {
+        let res = self.write.get();
+        self.write.set(false);
+        res
+    }
+}
+
+fn run(program: &[i64], phases: &[i64]) -> i64 {
+    let slot = &SlotIo::default();
+    let mut amps = (0..phases.len())
+        .map(|_| (program.to_vec(), slot))
+        .collect::<Vec<_>>();
+    let mut amps = phases
+        .iter()
+        .zip(&mut amps)
+        .map(|(phase, (mem, io))| {
+            let mut ic = IntCode::new(&mut *io, mem.as_mut_slice());
+            slot.set(*phase);
+            while !slot.clear_read() {
+                assert!(ic.step().unwrap());
+            }
+            ic
+        })
+        .collect::<Vec<_>>();
+
+    slot.set(0);
+    let mut thrust = 0;
+    'outer: loop {
+        for amp in amps.iter_mut() {
+            while !slot.clear_read() {
+                if !amp.step().unwrap() {
+                    break 'outer;
+                }
+            }
+            while !slot.clear_write() {
+                if !amp.step().unwrap() {
+                    break 'outer;
+                }
+            }
+        }
+        thrust = slot.get();
+    }
+    thrust
 }
 
 fn permutations<T, F>(xs: &mut [T], mut f: F)
@@ -61,21 +122,18 @@ where
 #[test]
 fn test_examples() {
     assert_eq!(
-        maximize_thrust(&[3, 15, 3, 16, 1002, 16, 10, 16, 1, 16, 15, 15, 4, 15, 99, 0, 0]),
-        43210
+        maximize_thrust(&[
+            3, 26, 1001, 26, -4, 26, 3, 27, 1002, 27, 2, 27, 1, 27, 26, 27, 4, 27, 1001, 28, -1,
+            28, 1005, 28, 6, 99, 0, 0, 5
+        ]),
+        139629729
     );
     assert_eq!(
         maximize_thrust(&[
-            3, 23, 3, 24, 1002, 24, 10, 24, 1002, 23, -1, 23, 101, 5, 23, 23, 1, 24, 23, 23, 4, 23,
-            99, 0, 0
+            3, 52, 1001, 52, -5, 52, 3, 53, 1, 52, 56, 54, 1007, 54, 5, 55, 1005, 55, 26, 1001, 54,
+            -5, 54, 1105, 1, 12, 1, 53, 54, 53, 1008, 54, 0, 55, 1001, 55, 1, 55, 2, 53, 55, 53, 4,
+            53, 1001, 56, -1, 56, 1005, 56, 6, 99, 0, 0, 0, 0, 10
         ]),
-        54321
-    );
-    assert_eq!(
-        maximize_thrust(&[
-            3, 31, 3, 32, 1002, 32, 10, 32, 1001, 31, -2, 31, 1007, 31, 0, 33, 1002, 33, 7, 33, 1,
-            33, 31, 31, 1, 32, 31, 31, 4, 31, 99, 0, 0, 0
-        ]),
-        65210
+        18216
     );
 }
