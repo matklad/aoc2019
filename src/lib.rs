@@ -7,7 +7,7 @@ pub fn parse_memory(text: &str) -> Result<Vec<i64>> {
     let res = text
         .trim()
         .split(',')
-        .map(|it| it.parse::<i64>())
+        .map(|it| it.trim().parse::<i64>())
         .collect::<Result<Vec<_>, _>>()?;
     Ok(res)
 }
