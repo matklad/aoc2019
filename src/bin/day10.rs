@@ -29,17 +29,17 @@ impl Map {
             if line.trim().is_empty() {
                 break;
             }
-            if !(dim.x == 0 || dim.x == line.bytes().len() as i32) {
+            if !(dim.0 == 0 || dim.0 == line.bytes().len() as i64) {
                 Err(io::Error::new(io::ErrorKind::InvalidData, "invalid map"))?
             };
-            dim.x = line.bytes().len() as i32;
-            dim.y += 1;
+            dim.0 = line.bytes().len() as i64;
+            dim.1 += 1;
 
-            let y = dim.y - 1;
+            let y = dim.1 - 1;
             for (x, b) in line.bytes().enumerate() {
-                let x = x as i32;
+                let x = x as i64;
                 match b {
-                    b'#' => asteroids.push(Point { x, y }),
+                    b'#' => asteroids.push(Point(x, y)),
                     b'.' => (),
                     _ => Err(io::Error::new(io::ErrorKind::InvalidData, "invalid map"))?,
                 }
@@ -72,11 +72,10 @@ impl Map {
                 continue;
             }
             let mut p = p - origin;
-            p.y *= -1;
+            p.1 *= -1;
             let (mut slope, dist) = classify(p);
             if dist < 0 {
-                slope.x *= -1;
-                slope.y *= -1;
+                slope = -slope;
             }
             classified.entry(slope).or_default().push(p);
         }
@@ -97,16 +96,16 @@ impl Map {
         keyed
             .into_iter()
             .map(|(_, _, mut p)| {
-                p.y *= -1;
+                p.1 *= -1;
                 p + origin
             })
             .collect()
     }
 
-    fn winning_bet(&self) -> i32 {
+    fn winning_bet(&self) -> i64 {
         let (p, _) = self.best();
         let a = self.destruction_order(p)[199];
-        a.x * 100 + a.y
+        a.0 * 100 + a.1
     }
 
     fn best(&self) -> (Point, usize) {
@@ -119,22 +118,19 @@ impl Map {
 }
 
 fn cmp(slope1: Point, slope2: Point) -> Ordering {
-    (slope1.x < 0)
-        .cmp(&(slope2.x < 0))
-        .then_with(|| (slope1.y * slope2.x).cmp(&(slope2.y * slope1.x)).reverse())
+    (slope1.0 < 0)
+        .cmp(&(slope2.0 < 0))
+        .then_with(|| (slope1.1 * slope2.0).cmp(&(slope2.1 * slope1.0)).reverse())
 }
 
-fn classify(p: Point) -> (Point, i32) // (slope, dist)
+fn classify(p: Point) -> (Point, i64) // (slope, dist)
 {
-    let gcd = gcd(p.x, p.y);
-    let slope = Point {
-        x: p.x / gcd,
-        y: p.y / gcd,
-    };
+    let gcd = gcd(p.0, p.1);
+    let slope = Point(p.0 / gcd, p.1 / gcd);
     (slope, gcd)
 }
 
-fn gcd(x: i32, y: i32) -> i32 {
+fn gcd(x: i64, y: i64) -> i64 {
     if y == 0 {
         x
     } else {
@@ -143,44 +139,38 @@ fn gcd(x: i32, y: i32) -> i32 {
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy)]
-struct Point {
-    x: i32,
-    y: i32,
-}
+struct Point(i64, i64);
 
 impl ops::Sub for Point {
     type Output = Point;
     fn sub(self, rhs: Point) -> Point {
-        Point {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        }
+        Point(self.0 - rhs.0, self.1 - rhs.1)
     }
 }
 
 impl ops::Add for Point {
     type Output = Point;
     fn add(self, rhs: Point) -> Point {
-        Point {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        }
+        Point(self.0 + rhs.0, self.1 + rhs.1)
+    }
+}
+
+impl ops::Neg for Point {
+    type Output = Point;
+    fn neg(self) -> Point {
+        Point(-self.0, -self.1)
     }
 }
 
 #[test]
 fn test_classify() {
-    fn point(x: i32, y: i32) -> Point {
-        Point { x, y }
-    }
-
-    let (slope1, dist1) = classify(point(1, 2));
-    let (slope2, dist2) = classify(point(2, 4));
+    let (slope1, dist1) = classify(Point(1, 2));
+    let (slope2, dist2) = classify(Point(2, 4));
     assert_eq!(slope1, slope2);
     assert!(dist2.abs() > dist1.abs());
 
-    let (slope3, dist3) = classify(point(-1, -2));
-    let (slope4, dist4) = classify(point(-2, -4));
+    let (slope3, dist3) = classify(Point(-1, -2));
+    let (slope4, dist4) = classify(Point(-2, -4));
     assert_eq!(slope3, slope4);
     assert!(dist4.abs() > dist3.abs());
 
@@ -266,19 +256,15 @@ fn test_examples() {
 
 #[test]
 fn test_sort_by_angle() {
-    fn p(x: i32, y: i32) -> Point {
-        Point { x, y }
-    }
-
     let points = vec![
-        p(0, 1),
-        p(1, 1),
-        p(1, 0),
-        p(1, -1),
-        p(0, -1),
-        p(-1, -1),
-        p(-1, 0),
-        p(-1, 1),
+        Point(0, 1),
+        Point(1, 1),
+        Point(1, 0),
+        Point(1, -1),
+        Point(0, -1),
+        Point(-1, -1),
+        Point(-1, 0),
+        Point(-1, 1),
     ];
     let mut temp = points.clone();
     temp.sort_by(|p1, p2| cmp(*p1, *p2));
