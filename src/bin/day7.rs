@@ -1,6 +1,6 @@
-use std::{cell::Cell, io::Read};
+use std::{io::Read};
 
-use aoc::{parse_memory, IntCode, Io, Result, SlotIo};
+use aoc::{parse_memory, IntCode,  Result, SlotIo};
 
 fn main() -> Result<()> {
     let mut buf = String::new();

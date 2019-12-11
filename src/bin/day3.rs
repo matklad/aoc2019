@@ -1,4 +1,4 @@
-use aoc::{Direction, Error, Result};
+use aoc::{Direction, Error, Point, Result};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -23,13 +23,13 @@ fn _solve_dist(path1: &str, path2: &str) -> i64 {
     let path1 = parse_path(path1).unwrap();
     let path2 = parse_path(path2).unwrap();
 
-    let path1_points: HashSet<(i64, i64)> = trace_path(&path1).into_iter().collect();
+    let path1_points: HashSet<Point> = trace_path(&path1).into_iter().collect();
     let common_points = trace_path(&path2)
         .into_iter()
         .skip(1)
         .filter(|it| path1_points.contains(&it));
 
-    let min_dist = common_points.map(|(x, y)| x.abs() + y.abs()).min().unwrap();
+    let min_dist = common_points.map(|p| p.0.abs() + p.1.abs()).min().unwrap();
     min_dist
 }
 
@@ -37,10 +37,10 @@ fn solve_steps(path1: &str, path2: &str) -> usize {
     let path1 = parse_path(path1).unwrap();
     let path2 = parse_path(path2).unwrap();
 
-    let path1_points: HashMap<(i64, i64), usize> = trace_path(&path1)
+    let path1_points: HashMap<Point, usize> = trace_path(&path1)
         .into_iter()
         .enumerate()
-        .map(|(i, (x, y))| ((x, y), i))
+        .map(|(i, p)| (p, i))
         .rev()
         .collect();
 
@@ -48,8 +48,8 @@ fn solve_steps(path1: &str, path2: &str) -> usize {
         .into_iter()
         .enumerate()
         .skip(1)
-        .filter_map(|(d2, (x, y))| {
-            let d1 = *path1_points.get(&(x, y))?;
+        .filter_map(|(d2, p)| {
+            let d1 = *path1_points.get(&p)?;
             Some(d1 + d2)
         });
 
@@ -80,12 +80,12 @@ impl FromStr for Segment {
     }
 }
 
-fn trace_path(segments: &[Segment]) -> Vec<(i64, i64)> {
-    let mut res = vec![(0, 0)];
+fn trace_path(segments: &[Segment]) -> Vec<Point> {
+    let mut res = vec![Point(0, 0)];
     for seg in segments.iter() {
-        let (x, y) = *res.last().unwrap();
-        let (dx, dy) = seg.dir.delta();
-        res.extend((1..=(seg.len as i64)).map(|d| (x + dx * d, y + dy * d)));
+        let last = *res.last().unwrap();
+        let delta = seg.dir.delta();
+        res.extend((1..=(seg.len as i64)).map(|d| last + delta * d));
     }
     res
 }

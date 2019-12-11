@@ -3,7 +3,9 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use aoc::{extend_memory, parse_memory, read_stdin_to_string, Direction, IntCode, Result, SlotIo};
+use aoc::{
+    extend_memory, parse_memory, read_stdin_to_string, Direction, IntCode, Point, Result, SlotIo,
+};
 
 fn main() -> Result<()> {
     let input = read_stdin_to_string()?;
@@ -11,13 +13,13 @@ fn main() -> Result<()> {
     extend_memory(&mut prog);
 
     let painted = run(prog)?;
-    let min_x = painted.keys().map(|(_, x)| *x).min().unwrap();
-    let min_y = painted.keys().map(|(y, _)| -y).min().unwrap();
+    let min_x = painted.keys().map(|p| p.1).min().unwrap();
+    let min_y = painted.keys().map(|p| -p.0).min().unwrap();
 
     let mut hull = vec![vec![Color::Black; 80]; 10];
-    for ((y, x), color) in painted {
-        let y = (-y - min_y) as usize;
-        let x = (x - min_x) as usize;
+    for (p, color) in painted {
+        let y = (-p.0 - min_y) as usize;
+        let x = (p.1 - min_x) as usize;
         hull[y][x] = color;
     }
     for row in hull {
@@ -34,9 +36,9 @@ fn main() -> Result<()> {
 }
 
 struct Robot {
-    pos: (i64, i64),
+    pos: Point,
     dir: Direction,
-    painted: HashMap<(i64, i64), Color>,
+    painted: HashMap<Point, Color>,
 }
 
 #[derive(Clone, Copy)]
@@ -66,17 +68,17 @@ impl TryFrom<i64> for Color {
     }
 }
 
-fn run(mut prog: Vec<i64>) -> Result<HashMap<(i64, i64), Color>> {
+fn run(mut prog: Vec<i64>) -> Result<HashMap<Point, Color>> {
     let slot = SlotIo::default();
     let mut io = &slot;
     let mut computer = IntCode::new(&mut io, &mut prog);
 
     let mut robot = Robot {
-        pos: (0, 0),
+        pos: Point(0, 0),
         dir: Direction::Up,
         painted: HashMap::new(),
     };
-    robot.painted.insert((0, 0), Color::White);
+    robot.painted.insert(Point(0, 0), Color::White);
 
     'outer: loop {
         let color = robot
@@ -111,9 +113,7 @@ fn run(mut prog: Vec<i64>) -> Result<HashMap<(i64, i64), Color>> {
             1 => robot.dir.turn_right(),
             it => Err(format!("unknown direction {}", it))?,
         };
-        let (dx, dy) = robot.dir.delta();
-        robot.pos.0 += dx;
-        robot.pos.1 += dy;
+        robot.pos += robot.dir.delta();
     }
     Ok(robot.painted)
 }

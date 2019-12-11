@@ -1,13 +1,7 @@
-use std::io::stdin;
-
-use aoc::{parse_memory, IntCode, Result, StdIo};
+use aoc::{parse_memory, read_stdin_to_string, IntCode, Result, StdIo};
 
 fn main() -> Result<()> {
-    let line = {
-        let mut buf = String::new();
-        io::stdin().read_line(&mut buf)?;
-        buf
-    };
+    let line = read_stdin_to_string()?;
 
     let memory = parse_memory(line.as_str())?;
     for noun in 0..100 {

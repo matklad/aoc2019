@@ -16,12 +16,12 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn delta(self) -> (i64, i64) {
+    pub fn delta(self) -> Point {
         match self {
-            Direction::Up => (1, 0),
-            Direction::Right => (0, 1),
-            Direction::Down => (-1, 0),
-            Direction::Left => (0, -1),
+            Direction::Up => Point(1, 0),
+            Direction::Right => Point(0, 1),
+            Direction::Down => Point(-1, 0),
+            Direction::Left => Point(0, -1),
         }
     }
 
@@ -61,10 +61,23 @@ impl ops::Add for Point {
     }
 }
 
+impl ops::AddAssign for Point {
+    fn add_assign(&mut self, rhs: Point) {
+        *self = *self + rhs;
+    }
+}
+
 impl ops::Neg for Point {
     type Output = Point;
     fn neg(self) -> Point {
         Point(-self.0, -self.1)
+    }
+}
+
+impl ops::Mul<i64> for Point {
+    type Output = Point;
+    fn mul(self, rhs: i64) -> Point {
+        Point(self.0 * rhs, self.1 * rhs)
     }
 }
 
