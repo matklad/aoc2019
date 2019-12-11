@@ -1,13 +1,13 @@
 use std::io::{stdin, Read};
 
-use aoc::{parse_memory, IntCode, Result, MemIo};
+use aoc::{parse_memory, IntCode, Result, MemIo, extend_memory};
 
 fn main() -> Result<()> {
     let mut buf = String::new();
     stdin().read_to_string(&mut buf)?;
 
     let mut mem = parse_memory(&buf)?;
-    extend(&mut mem);
+    extend_memory(&mut mem);
 
     let mut io = MemIo::new(vec![2]);
     let computer = IntCode::new(&mut io, &mut mem);
@@ -17,17 +17,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn extend(mem: &mut Vec<i64>) {
-    let limit = 64 * 1024;
-    if mem.len() < limit {
-        mem.resize(limit, 0);
-    }
-}
-
 #[test]
 fn test_examples() {
     fn run(mut prog: Vec<i64>) -> Vec<i64> {
-        extend(&mut prog);
+        extend_memory(&mut prog);
         let mut io = aio::MemIo::new(vec![]);
         let computer = IntCode::new(&mut io, &mut prog);
         computer.run().unwrap();

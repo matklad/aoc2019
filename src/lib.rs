@@ -1,20 +1,21 @@
 use std::{
     cell::Cell,
-    io::{self, Write},
+    io::{self, Read, Write},
 };
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[derive(Clone, Copy)]
 pub enum Direction {
-    Up,
+    Up = 0,
     Right,
     Down,
     Left,
 }
 
 impl Direction {
-    pub fn delta(&self) -> (i64, i64) {
+    pub fn delta(self) -> (i64, i64) {
         match self {
             Direction::Up => (1, 0),
             Direction::Right => (0, 1),
@@ -22,6 +23,31 @@ impl Direction {
             Direction::Left => (0, -1),
         }
     }
+
+    pub fn turn_left(self) -> Direction {
+        self.turn(-1)
+    }
+
+    pub fn turn_right(self) -> Direction {
+        self.turn(1)
+    }
+
+    fn turn(self, delta: isize) -> Direction {
+        let idx = (self as isize + delta) as usize;
+        [
+            Direction::Up,
+            Direction::Right,
+            Direction::Down,
+            Direction::Left,
+        ][idx % 4]
+    }
+}
+
+pub fn read_stdin_to_string() -> Result<String, io::Error> {
+    let mut buf = String::new();
+    io::stdin().read_to_string(&mut buf)?;
+    buf.truncate(buf.trim_end().len());
+    Ok(buf)
 }
 
 pub fn parse_memory(text: &str) -> Result<Vec<i64>> {
@@ -363,4 +389,11 @@ impl ArithOp {
 enum JumpOp {
     IfTrue,
     IfFalse,
+}
+
+pub fn extend_memory(mem: &mut Vec<i64>) {
+    let limit = 64 * 1024;
+    if mem.len() < limit {
+        mem.resize(limit, 0);
+    }
 }
