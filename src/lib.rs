@@ -1,7 +1,28 @@
-use std::io::{self, Write};
+use std::{
+    cell::Cell,
+    io::{self, Write},
+};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+pub enum Direction {
+    Up,
+    Right,
+    Down,
+    Left,
+}
+
+impl Direction {
+    pub fn delta(&self) -> (i64, i64) {
+        match self {
+            Direction::Up => (1, 0),
+            Direction::Right => (0, 1),
+            Direction::Down => (-1, 0),
+            Direction::Left => (0, -1),
+        }
+    }
+}
 
 pub fn parse_memory(text: &str) -> Result<Vec<i64>> {
     let res = text
@@ -71,6 +92,45 @@ impl Io for MemIo {
     fn write(&mut self, value: i64) -> Result<()> {
         self.output.push(value);
         Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SlotIo {
+    slot: Cell<i64>,
+    read: Cell<bool>,
+    write: Cell<bool>,
+}
+
+impl Io for &SlotIo {
+    fn read(&mut self) -> Result<i64> {
+        let res = self.get();
+        self.read.set(true);
+        Ok(res)
+    }
+    fn write(&mut self, value: i64) -> Result<()> {
+        self.set(value);
+        self.write.set(true);
+        Ok(())
+    }
+}
+
+impl SlotIo {
+    pub fn get(&self) -> i64 {
+        self.slot.get()
+    }
+    pub fn set(&self, value: i64) {
+        self.slot.set(value)
+    }
+    pub fn clear_read(&self) -> bool {
+        let res = self.read.get();
+        self.read.set(false);
+        res
+    }
+    pub fn clear_write(&self) -> bool {
+        let res = self.write.get();
+        self.write.set(false);
+        res
     }
 }
 

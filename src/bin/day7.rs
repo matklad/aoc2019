@@ -1,6 +1,6 @@
 use std::{cell::Cell, io::Read};
 
-use aoc::{parse_memory, IntCode, Io, Result};
+use aoc::{parse_memory, IntCode, Io, Result, SlotIo};
 
 fn main() -> Result<()> {
     let mut buf = String::new();
@@ -16,45 +16,6 @@ fn maximize_thrust(program: &[i64]) -> i64 {
     let mut res = i64::min_value();
     permutations(&mut phases, |phases| res = res.max(run(program, phases)));
     res
-}
-
-#[derive(Default)]
-struct SlotIo {
-    slot: Cell<i64>,
-    read: Cell<bool>,
-    write: Cell<bool>,
-}
-
-impl Io for &SlotIo {
-    fn read(&mut self) -> Result<i64> {
-        let res = self.get();
-        self.read.set(true);
-        Ok(res)
-    }
-    fn write(&mut self, value: i64) -> Result<()> {
-        self.set(value);
-        self.write.set(true);
-        Ok(())
-    }
-}
-
-impl SlotIo {
-    fn get(&self) -> i64 {
-        self.slot.get()
-    }
-    fn set(&self, value: i64) {
-        self.slot.set(value)
-    }
-    fn clear_read(&self) -> bool {
-        let res = self.read.get();
-        self.read.set(false);
-        res
-    }
-    fn clear_write(&self) -> bool {
-        let res = self.write.get();
-        self.write.set(false);
-        res
-    }
 }
 
 fn run(program: &[i64], phases: &[i64]) -> i64 {

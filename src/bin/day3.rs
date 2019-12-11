@@ -1,4 +1,4 @@
-use aoc::{Error, Result};
+use aoc::{Direction, Error, Result};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -60,13 +60,6 @@ fn parse_path(text: &str) -> Result<Vec<Segment>> {
     text.trim().split(",").map(|it| it.parse()).collect()
 }
 
-enum Direction {
-    Up,
-    Right,
-    Down,
-    Left,
-}
-
 struct Segment {
     dir: Direction,
     len: u64,
@@ -91,12 +84,7 @@ fn trace_path(segments: &[Segment]) -> Vec<(i64, i64)> {
     let mut res = vec![(0, 0)];
     for seg in segments.iter() {
         let (x, y) = *res.last().unwrap();
-        let (dx, dy) = match seg.dir {
-            Direction::Up => (1, 0),
-            Direction::Right => (0, 1),
-            Direction::Down => (-1, 0),
-            Direction::Left => (0, -1),
-        };
+        let (dx, dy) = seg.dir.delta();
         res.extend((1..=(seg.len as i64)).map(|d| (x + dx * d, y + dy * d)));
     }
     res
