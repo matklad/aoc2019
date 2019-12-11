@@ -2,10 +2,9 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     io::{self, BufRead},
-    ops,
 };
 
-use aoc::Result;
+use aoc::{Result, Point};
 
 fn main() -> Result<()> {
     let map = Map::read(&mut io::stdin().lock())?;
@@ -135,30 +134,6 @@ fn gcd(x: i64, y: i64) -> i64 {
         x
     } else {
         gcd(y, x % y)
-    }
-}
-
-#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy)]
-struct Point(i64, i64);
-
-impl ops::Sub for Point {
-    type Output = Point;
-    fn sub(self, rhs: Point) -> Point {
-        Point(self.0 - rhs.0, self.1 - rhs.1)
-    }
-}
-
-impl ops::Add for Point {
-    type Output = Point;
-    fn add(self, rhs: Point) -> Point {
-        Point(self.0 + rhs.0, self.1 + rhs.1)
-    }
-}
-
-impl ops::Neg for Point {
-    type Output = Point;
-    fn neg(self) -> Point {
-        Point(-self.0, -self.1)
     }
 }
 

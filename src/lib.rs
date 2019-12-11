@@ -1,6 +1,7 @@
 use std::{
     cell::Cell,
     io::{self, Read, Write},
+    ops,
 };
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -40,6 +41,30 @@ impl Direction {
             Direction::Down,
             Direction::Left,
         ][idx % 4]
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct Point(pub i64, pub i64);
+
+impl ops::Sub for Point {
+    type Output = Point;
+    fn sub(self, rhs: Point) -> Point {
+        Point(self.0 - rhs.0, self.1 - rhs.1)
+    }
+}
+
+impl ops::Add for Point {
+    type Output = Point;
+    fn add(self, rhs: Point) -> Point {
+        Point(self.0 + rhs.0, self.1 + rhs.1)
+    }
+}
+
+impl ops::Neg for Point {
+    type Output = Point;
+    fn neg(self) -> Point {
+        Point(-self.0, -self.1)
     }
 }
 
