@@ -7,6 +7,15 @@ use std::{
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+pub fn gcd(x: i64, y: i64) -> i64 {
+    if y == 0 {
+        x
+    } else {
+        gcd(y, x % y)
+    }
+}
+
+
 #[derive(Clone, Copy)]
 pub enum Direction {
     Up = 0,

@@ -4,7 +4,7 @@ use std::{
     io::{self, BufRead},
 };
 
-use aoc::{Result, Point};
+use aoc::{Result, Point, gcd};
 
 fn main() -> Result<()> {
     let map = Map::read(&mut io::stdin().lock())?;
@@ -127,14 +127,6 @@ fn classify(p: Point) -> (Point, i64) // (slope, dist)
     let gcd = gcd(p.0, p.1);
     let slope = Point(p.0 / gcd, p.1 / gcd);
     (slope, gcd)
-}
-
-fn gcd(x: i64, y: i64) -> i64 {
-    if y == 0 {
-        x
-    } else {
-        gcd(y, x % y)
-    }
 }
 
 #[test]
