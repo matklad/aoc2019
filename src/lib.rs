@@ -15,7 +15,6 @@ pub fn gcd(x: i64, y: i64) -> i64 {
     }
 }
 
-
 #[derive(Clone, Copy)]
 pub enum Direction {
     Up = 0,
@@ -98,11 +97,12 @@ pub fn read_stdin_to_string() -> Result<String, io::Error> {
 }
 
 pub fn parse_memory(text: &str) -> Result<Vec<i64>> {
-    let res = text
+    let mut res = text
         .trim()
         .split(',')
         .map(|it| it.trim().parse::<i64>())
         .collect::<Result<Vec<_>, _>>()?;
+    extend_memory(&mut res);
     Ok(res)
 }
 
