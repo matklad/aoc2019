@@ -59,18 +59,50 @@ fn split_at<'a>(s: &'a str, sep: &str) -> Option<(&'a str, &'a str)> {
 fn solve<'a>(scheme: &'a Scheme, target: &'a str) -> u64 {
     let mut work: HashMap<&'a str, i64> = HashMap::new();
     work.insert(target, -1);
+    work.insert("ORE", 1_000_000_000_000);
 
-    loop {
-        let (chemical, amount) = match work.iter().find(|(k, v)| **v < 0 && **k != "ORE") {
-            Some((k, v)) => (*k, -v as u64),
-            _ => return -work["ORE"] as u64,
-        };
-        let reaction = &scheme[chemical];
-        let multiplier = (amount + reaction.amount - 1) / reaction.amount;
-        for (amount, reagent) in reaction.reagents.iter() {
-            *work.entry(reagent.as_str()).or_default() -= (amount * multiplier) as i64
+    // loop {
+    //     let (chemical, amount) = match work.iter().find(|(k, v)| **v < 0 && **k != "ORE") {
+    //         Some((k, v)) => (*k, -v as u64),
+    //         _ => break,
+    //     };
+    //     let reaction = &scheme[chemical];
+    //     let multiplier = (amount + reaction.amount - 1) / reaction.amount;
+    //     for (amount, reagent) in reaction.reagents.iter() {
+    //         *work.entry(reagent.as_str()).or_default() -= (amount * multiplier) as i64
+    //     }
+    //     *work.get_mut(chemical).unwrap() += (multiplier * reaction.amount) as i64;
+    //     assert!(work[chemical] >= 0)
+    // }
+    // let multiplier = 1_000_000_000_000 / -work["ORE"];
+    // for (_, v) in work.iter_mut() {
+    //     *v *= multiplier;
+    // }
+    assert!(work["ORE"] >= 0);
+
+    let mut res = 0;
+    'outer: loop {
+        work.insert("FUEL", -1);
+
+        loop {
+            let (chemical, amount) = match work.iter().find(|(_k, v)| **v < 0) {
+                Some((k, v)) => (*k, -v as u64),
+                _ => {
+                    res += 1;
+                    break;
+                }
+            };
+            if chemical == "ORE" {
+                break 'outer;
+            }
+            let reaction = &scheme[chemical];
+            let multiplier = (amount + reaction.amount - 1) / reaction.amount;
+            for (amount, reagent) in reaction.reagents.iter() {
+                *work.entry(reagent.as_str()).or_default() -= (amount * multiplier) as i64
+            }
+            *work.get_mut(chemical).unwrap() += (multiplier * reaction.amount) as i64;
+            assert!(work[chemical] >= 0)
         }
-        *work.get_mut(chemical).unwrap() += (multiplier * reaction.amount) as i64;
-        assert!(work[chemical] >= 0)
     }
+    res as u64
 }
