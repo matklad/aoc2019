@@ -1,5 +1,6 @@
 use std::{
     cell::Cell,
+    fmt,
     io::{self, Read, Write},
     ops,
 };
@@ -24,6 +25,13 @@ pub enum Direction {
 }
 
 impl Direction {
+    pub const ALL: [Direction; 4] = [
+        Direction::Up,
+        Direction::Right,
+        Direction::Down,
+        Direction::Left,
+    ];
+
     pub fn delta(self) -> Point {
         match self {
             Direction::Up => Point(1, 0),
@@ -41,14 +49,13 @@ impl Direction {
         self.turn(1)
     }
 
+    pub fn rev(self) -> Direction {
+        self.turn(2)
+    }
+
     fn turn(self, delta: isize) -> Direction {
         let idx = (self as isize + delta) as usize;
-        [
-            Direction::Up,
-            Direction::Right,
-            Direction::Down,
-            Direction::Left,
-        ][idx % 4]
+        Direction::ALL[idx % 4]
     }
 }
 
@@ -228,7 +235,7 @@ impl<'a> IntCode<'a> {
         Ok(())
     }
     pub fn step(&mut self) -> Result<bool> {
-        let op = self.decode()?;
+        let (size, op) = self.decode()?;
         match op {
             Op::Halt => return Ok(false),
             Op::Arith { op, lhs, rhs, dst } => {
@@ -261,6 +268,7 @@ impl<'a> IntCode<'a> {
                 self.bp += adj;
             }
         }
+        self.ip += size;
         Ok(true)
     }
 
@@ -285,9 +293,9 @@ impl<'a> IntCode<'a> {
         let addr = self.decode_addr(addr)?;
         Ok(self.mem[addr])
     }
-    fn load_ip(&self) -> Result<i64> {
+    fn load_instr(&self, addr: i64) -> Result<i64> {
         self.load(Addr {
-            value: self.ip,
+            value: addr,
             rel: false,
         })
     }
@@ -297,7 +305,7 @@ impl<'a> IntCode<'a> {
         Ok(())
     }
 
-    fn decode(&mut self) -> Result<Op> {
+    fn decode(&self) -> Result<(i64, Op)> {
         fn to_value(modes: &mut i64, value: i64) -> Result<Value> {
             let res = match *modes % 10 {
                 0 => Value::Addr(Addr { value, rel: false }),
@@ -309,26 +317,26 @@ impl<'a> IntCode<'a> {
             Ok(res)
         }
 
-        let op_code = self.load_ip()?;
+        let op_code = self.load_instr(self.ip)?;
         let (mut modes, op_code) = (op_code / 100, op_code % 100);
-
+        let mut size = 0;
         macro_rules! args {
             ($($m:ident)*) => {{
                 let res = ($(args!(@ $m),)*);
                 if modes != 0 {
                     Err(format!("leftover modes: {}", modes))?
                 }
-                self.ip += 1;
+                size += 1;
                 res
             }};
             (@ v) => {{
-                self.ip += 1;
-                let val = self.load_ip()?;
+                size += 1;
+                let val = self.load_instr(self.ip + size)?;
                 to_value(&mut modes, val)?
             }};
             (@ a) => {{
-                self.ip += 1;
-                let val = self.load_ip()?;
+                size += 1;
+                let val = self.load_instr(self.ip + size)?;
                 match to_value(&mut modes, val)? {
                     Value::Addr(it) => it,
                     Value::Immediate(_) => Err("Immediate address")?,
@@ -372,7 +380,7 @@ impl<'a> IntCode<'a> {
             99 => Op::Halt,
             _ => Err(format!("invalid op code: {}", op_code))?,
         };
-        Ok(res)
+        Ok((size, res))
     }
 }
 
@@ -442,5 +450,91 @@ pub fn extend_memory(mem: &mut Vec<i64>) {
     let limit = 64 * 1024;
     if mem.len() < limit {
         mem.resize(limit, 0);
+    }
+}
+
+pub struct StepIo {
+    read_slot: Cell<Option<i64>>,
+    write_slot: Cell<Option<i64>>,
+}
+
+impl Default for StepIo {
+    fn default() -> Self {
+        StepIo {
+            read_slot: Cell::new(None),
+            write_slot: Cell::new(Some(0)),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ReadFail;
+impl std::error::Error for ReadFail {}
+impl fmt::Display for ReadFail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ReadFail")
+    }
+}
+
+#[derive(Debug)]
+struct WriteFail;
+impl std::error::Error for WriteFail {}
+impl fmt::Display for WriteFail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WriteFail")
+    }
+}
+
+impl Io for &StepIo {
+    fn read(&mut self) -> Result<i64> {
+        let res = self.read_slot.take().ok_or(ReadFail)?;
+        Ok(res)
+    }
+    fn write(&mut self, value: i64) -> Result<()> {
+        if self.write_slot.get().is_some() {
+            Err(WriteFail)?;
+        }
+        self.write_slot.set(Some(value));
+        Ok(())
+    }
+}
+
+pub struct StepCode<'a> {
+    io: &'a StepIo,
+    cpu: IntCode<'a>,
+}
+
+impl<'a> StepCode<'a> {
+    pub fn new(io: &'a mut &StepIo, mem: &'a mut [i64]) -> StepCode<'a> {
+        let io_copy = &*io;
+        StepCode {
+            io: io_copy,
+            cpu: IntCode::new(io, mem),
+        }
+    }
+
+    pub fn input(&mut self, value: i64) {
+        loop {
+            match self.cpu.step() {
+                Ok(_) => (),
+                Err(e) if e.downcast_ref::<ReadFail>().is_some() => break,
+                Err(_) => panic!(),
+            }
+        }
+        self.io.read_slot.set(Some(value));
+        self.cpu.step().unwrap();
+    }
+
+    pub fn output(&mut self) -> i64 {
+        loop {
+            match self.cpu.step() {
+                Ok(_) => (),
+                Err(e) if e.downcast_ref::<WriteFail>().is_some() => break,
+                Err(_) => panic!(),
+            }
+        }
+        self.io.write_slot.set(None);
+        self.cpu.step().unwrap();
+        self.io.write_slot.get().unwrap()
     }
 }
