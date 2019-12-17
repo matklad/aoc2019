@@ -538,3 +538,79 @@ impl<'a> StepCode<'a> {
         self.io.write_slot.get().unwrap()
     }
 }
+
+pub struct Board<T> {
+    dim: (usize, usize),
+    data: Vec<T>,
+}
+
+impl<T> Board<T> {
+    pub fn new(dim: (usize, usize), element: T) -> Board<T>
+    where
+        T: Clone,
+    {
+        Board {
+            dim,
+            data: vec![element; dim.0 * dim.1],
+        }
+    }
+
+    pub fn print(&self, display: &dyn Fn(&T) -> char) {
+        for row in self.data.chunks(self.dim.0) {
+            let row = row.iter().map(display).collect::<String>();
+            println!("{}", row)
+        }
+    }
+
+    pub fn find(&self, pred: impl Fn(&T) -> bool) -> Option<Point> {
+        self.data
+            .iter()
+            .position(pred)
+            .map(|idx| self.to_point(idx))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Point, &T)> + '_ {
+        self.data
+            .iter()
+            .enumerate()
+            .map(move |(idx, val)| (self.to_point(idx), val))
+    }
+
+    fn to_index(&self, p: Point) -> usize {
+        fn abs(rel: i64, dim: usize) -> usize {
+            let res = rel + dim as i64 / 2;
+            assert!(0 <= res && res < dim as i64);
+            res as usize
+        }
+
+        let x = abs(p.0, self.dim.0);
+        let y = abs(p.1, self.dim.1);
+        y * self.dim.0 + x
+    }
+
+    fn to_point(&self, idx: usize) -> Point {
+        fn rel(abs: usize, dim: usize) -> i64 {
+            abs as i64 - (dim as i64) / 2
+        }
+        let x = idx % self.dim.0;
+        let y = idx / self.dim.0;
+        let res = Point(rel(x, self.dim.0), rel(y, self.dim.1));
+        assert_eq!(self.to_index(res), idx);
+        res
+    }
+}
+
+impl<T> ops::Index<Point> for Board<T> {
+    type Output = T;
+    fn index(&self, index: Point) -> &T {
+        let idx = self.to_index(index);
+        &self.data[idx]
+    }
+}
+
+impl<T> ops::IndexMut<Point> for Board<T> {
+    fn index_mut(&mut self, index: Point) -> &mut T {
+        let idx = self.to_index(index);
+        &mut self.data[idx]
+    }
+}
