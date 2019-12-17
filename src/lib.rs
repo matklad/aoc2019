@@ -16,12 +16,24 @@ pub fn gcd(x: i64, y: i64) -> i64 {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Up = 0,
     Right,
     Down,
     Left,
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let l = match self {
+            Direction::Up => 'U',
+            Direction::Right => 'R',
+            Direction::Down => 'D',
+            Direction::Left => 'L',
+        };
+        write!(f, "{}", l)
+    }
 }
 
 impl Direction {
@@ -34,10 +46,10 @@ impl Direction {
 
     pub fn delta(self) -> Point {
         match self {
-            Direction::Up => Point(1, 0),
-            Direction::Right => Point(0, 1),
-            Direction::Down => Point(-1, 0),
-            Direction::Left => Point(0, -1),
+            Direction::Up => Point(0, -1),
+            Direction::Right => Point(1, 0),
+            Direction::Down => Point(0, 1),
+            Direction::Left => Point(-1, 0),
         }
     }
 
@@ -53,7 +65,7 @@ impl Direction {
         self.turn(2)
     }
 
-    fn turn(self, delta: isize) -> Direction {
+    pub fn turn(self, delta: isize) -> Direction {
         let idx = (self as isize + delta) as usize;
         Direction::ALL[idx % 4]
     }
@@ -541,6 +553,7 @@ impl<'a> StepCode<'a> {
 
 pub struct Board<T> {
     dim: (usize, usize),
+    origin: Point,
     data: Vec<T>,
 }
 
@@ -551,8 +564,34 @@ impl<T> Board<T> {
     {
         Board {
             dim,
+            origin: Point::default(),
             data: vec![element; dim.0 * dim.1],
         }
+    }
+
+    pub fn from_elements(dim: (usize, usize), elements: impl IntoIterator<Item = T>) -> Board<T> {
+        let data: Vec<_> = elements.into_iter().collect();
+        assert!(data.len() == dim.0 * dim.1);
+        Board {
+            dim,
+            origin: Point::default(),
+            data,
+        }
+    }
+
+    pub fn move_origin_to_center(mut self) -> Self {
+        self.origin = Point((self.dim.0 / 2) as i64, (self.dim.1 / 2) as i64);
+        self
+    }
+
+    pub fn get(&self, idx: Point) -> Option<&T> {
+        let idx = self.to_index(idx)?;
+        self.data.get(idx)
+    }
+
+    pub fn get_mut(&mut self, idx: Point) -> Option<&mut T> {
+        let idx = self.to_index(idx)?;
+        self.data.get_mut(idx)
     }
 
     pub fn print(&self, display: &dyn Fn(&T) -> char) {
@@ -576,26 +615,28 @@ impl<T> Board<T> {
             .map(move |(idx, val)| (self.to_point(idx), val))
     }
 
-    fn to_index(&self, p: Point) -> usize {
-        fn abs(rel: i64, dim: usize) -> usize {
-            let res = rel + dim as i64 / 2;
-            assert!(0 <= res && res < dim as i64);
-            res as usize
+    fn to_index(&self, p: Point) -> Option<usize> {
+        fn abs(rel: i64, orig: i64, dim: usize) -> Option<usize> {
+            let res = rel + orig;
+            if !(0 <= res && res < dim as i64) {
+                return None;
+            }
+            Some(res as usize)
         }
 
-        let x = abs(p.0, self.dim.0);
-        let y = abs(p.1, self.dim.1);
-        y * self.dim.0 + x
+        let x = abs(p.0, self.origin.0, self.dim.0)?;
+        let y = abs(p.1, self.origin.1, self.dim.1)?;
+        Some(y * self.dim.0 + x)
     }
 
     fn to_point(&self, idx: usize) -> Point {
-        fn rel(abs: usize, dim: usize) -> i64 {
-            abs as i64 - (dim as i64) / 2
+        fn rel(abs: usize, orig: i64) -> i64 {
+            abs as i64 - orig
         }
         let x = idx % self.dim.0;
         let y = idx / self.dim.0;
-        let res = Point(rel(x, self.dim.0), rel(y, self.dim.1));
-        assert_eq!(self.to_index(res), idx);
+        let res = Point(rel(x, self.origin.0), rel(y, self.origin.1));
+        assert_eq!(self.to_index(res).unwrap(), idx);
         res
     }
 }
@@ -603,14 +644,12 @@ impl<T> Board<T> {
 impl<T> ops::Index<Point> for Board<T> {
     type Output = T;
     fn index(&self, index: Point) -> &T {
-        let idx = self.to_index(index);
-        &self.data[idx]
+        self.get(index).unwrap()
     }
 }
 
 impl<T> ops::IndexMut<Point> for Board<T> {
     fn index_mut(&mut self, index: Point) -> &mut T {
-        let idx = self.to_index(index);
-        &mut self.data[idx]
+        self.get_mut(index).unwrap()
     }
 }

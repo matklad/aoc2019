@@ -23,7 +23,7 @@ fn main() -> Result<()> {
 
 fn bfs(board: &Board<Cell>, start: Point) -> Board<Option<usize>> {
     let mut work = Vec::new();
-    let mut dists = Board::new((50, 50), None);
+    let mut dists = Board::new((50, 50), None).move_origin_to_center();
     dists[start] = Some(0);
     work.push(start);
     let mut idx = 0;
@@ -50,7 +50,7 @@ struct Ctx<'a> {
 
 impl Ctx<'_> {
     fn new(cpu: StepCode, dim: (usize, usize)) -> Ctx {
-        let mut board = Board::new(dim, Cell::Fog);
+        let mut board = Board::new(dim, Cell::Fog).move_origin_to_center();
         let pos = Point::default();
         board[pos] = Cell::Empty;
         Ctx { cpu, board, pos }
