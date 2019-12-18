@@ -108,6 +108,16 @@ impl ops::Mul<i64> for Point {
     }
 }
 
+impl Point {
+    pub fn neighbors(self) -> [Point; 4] {
+        let mut res = [self; 4];
+        for i in 0..4 {
+            res[i] = self + Direction::ALL[i].delta();
+        }
+        res
+    }
+}
+
 pub fn read_stdin_to_string() -> Result<String, io::Error> {
     let mut buf = String::new();
     io::stdin().read_to_string(&mut buf)?;
@@ -571,7 +581,12 @@ impl<T> Board<T> {
 
     pub fn from_elements(dim: (usize, usize), elements: impl IntoIterator<Item = T>) -> Board<T> {
         let data: Vec<_> = elements.into_iter().collect();
-        assert!(data.len() == dim.0 * dim.1);
+        assert!(
+            data.len() == dim.0 * dim.1,
+            "dim: {:?}, len: {}",
+            dim,
+            data.len()
+        );
         Board {
             dim,
             origin: Point::default(),
@@ -582,6 +597,10 @@ impl<T> Board<T> {
     pub fn move_origin_to_center(mut self) -> Self {
         self.origin = Point((self.dim.0 / 2) as i64, (self.dim.1 / 2) as i64);
         self
+    }
+
+    pub fn dim(&self) -> (usize, usize) {
+        self.dim
     }
 
     pub fn get(&self, idx: Point) -> Option<&T> {
