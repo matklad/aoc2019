@@ -71,7 +71,7 @@ impl Direction {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct Point(pub i64, pub i64);
 
 impl ops::Sub for Point {

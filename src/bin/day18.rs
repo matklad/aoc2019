@@ -1,4 +1,7 @@
-use std::collections::{HashSet, VecDeque};
+use std::{
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+};
 
 use aoc::{read_stdin_to_string, Board, Point, Result};
 
@@ -17,7 +20,19 @@ fn solve(map: &str) -> u32 {
         (width, height),
         map.bytes().filter(|&it| it != b'\n' && it != b' '),
     );
-    let (init_pos, _) = map.iter().find(|(_, cell)| **cell == b'@').unwrap();
+    let initial_positions = map
+        .iter()
+        .filter(|(_, cell)| **cell == b'@')
+        .map(|(p, _)| p)
+        .collect::<Vec<Point>>();
+    assert_eq!(initial_positions.len(), 4);
+    let initial_positions = [
+        initial_positions[0],
+        initial_positions[1],
+        initial_positions[2],
+        initial_positions[3],
+    ];
+
     let mut max_key = 0;
     let map = Board::from_elements(
         map.dim(),
@@ -36,42 +51,94 @@ fn solve(map: &str) -> u32 {
             }
         }),
     );
+    let all_keys = (1 << (max_key + 1)) - 1;
 
-    let mut work: VecDeque<(Point, u32, u32)> = VecDeque::new();
-    let mut visited: HashSet<(Point, u32)> = HashSet::new();
-    work.push_back((init_pos, 0, 0));
-    visited.insert((init_pos, 0));
+    let mut work: BinaryHeap<(Reverse<u32>, [Point; 4], u32)> = BinaryHeap::new();
+    let mut done: HashSet<([Point; 4], u32)> = HashSet::new();
+    let mut dists: HashMap<([Point; 4], u32), u32> = HashMap::new();
+    work.push((Reverse(0), initial_positions, 0));
+    dists.insert((initial_positions, 0), 0);
 
-    let all_keys = (1u32 << (max_key + 1)) - 1;
-    let mut res = None;
-    'outer: while let Some((pos, keys, dist)) = work.pop_front() {
-        for &next_pos in pos.neighbors().iter() {
-            let mut keys = keys;
-            match map.get(next_pos).copied().unwrap_or(Cell::Wall) {
-                Cell::Wall => continue,
-                Cell::Empty => (),
-                Cell::Pass(pass) => {
-                    if pass.is_door {
-                        if keys & pass.bit() != pass.bit() {
-                            continue;
-                        }
-                    } else {
-                        keys |= pass.bit();
-                    }
-                }
-            }
-            if keys == all_keys {
-                res = Some(dist + 1);
-                break 'outer;
-            }
-            if !visited.insert((next_pos, keys)) {
+    'outer: while let Some((dist, positions, keymask)) = work.pop() {
+        let dist = dist.0;
+        if !done.insert((positions, keymask)) {
+            continue;
+        }
+        assert_eq!(dists[&(positions, keymask)], dist);
+        if keymask == all_keys {
+            continue;
+        }
+
+        for (delta, positions, keymask) in next_positions(&map, positions, keymask) {
+            let dist = dist + delta;
+            if done.contains(&(positions, keymask)) {
+                assert!(dists[&(positions, keymask)] <= dist);
                 continue;
             }
-            work.push_back((next_pos, keys, dist + 1))
+            let prev = dists
+                .entry((positions, keymask))
+                .or_insert(u32::max_value());
+
+            if *prev > dist {
+                *prev = dist;
+                work.push((Reverse(dist), positions, keymask))
+            }
         }
     }
 
-    res.unwrap()
+    dists
+        .into_iter()
+        .filter(|((_, mask), _)| *mask == all_keys)
+        .map(|(_, d)| d)
+        .min()
+        .unwrap()
+}
+
+fn next_positions(
+    board: &Board<Cell>,
+    positions: [Point; 4],
+    mask: u32,
+) -> Vec<(u32, [Point; 4], u32)> {
+    let mut res = Vec::new();
+    for i in 0..4 {
+        for (dist, pos, keyset) in next_bot_positions(board, positions[i], mask) {
+            let mut positions = positions;
+            positions[i] = pos;
+            res.push((dist, positions, keyset))
+        }
+    }
+    res
+}
+
+fn next_bot_positions(board: &Board<Cell>, pos: Point, mask: u32) -> Vec<(u32, Point, u32)> {
+    let mut res = Vec::new();
+
+    let mut work = VecDeque::new();
+    let mut visited = HashSet::new();
+    work.push_back((pos, 0u32));
+    visited.insert(pos);
+
+    while let Some((pos, dist)) = work.pop_front() {
+        for &next_pos in pos.neighbors().iter() {
+            match board.get(next_pos).copied().unwrap_or(Cell::Wall) {
+                Cell::Wall => continue,
+                Cell::Empty => (),
+                Cell::Pass(pass) => {
+                    if mask & pass.bit() != pass.bit() {
+                        if !pass.is_door {
+                            res.push((dist + 1, next_pos, mask | pass.bit()));
+                        }
+                        continue;
+                    }
+                }
+            }
+            if visited.insert(next_pos) {
+                work.push_back((next_pos, dist + 1))
+            }
+        }
+    }
+
+    res
 }
 
 #[derive(Clone, Copy)]
@@ -134,5 +201,52 @@ fn test_examples() {
 ########################",
         ),
         81
+    );
+}
+
+#[test]
+fn test_examples2() {
+    assert_eq!(
+        solve(
+            "
+#######
+#a.#Cd#
+##@#@##
+#######
+##@#@##
+#cB#Ab#
+#######",
+        ),
+        8
+    );
+
+    assert_eq!(
+        solve(
+            "
+#############
+#DcBa.#.GhKl#
+#.###@#@#I###
+#e#d#####j#k#
+###C#@#@###J#
+#fEbA.#.FgHi#
+#############",
+        ),
+        32
+    );
+
+    assert_eq!(
+        solve(
+            "
+#############
+#g#f.D#..h#l#
+#F###e#E###.#
+#dCba@#@BcIJ#
+#############
+#nK.L@#@G...#
+#M###N#H###.#
+#o#m..#i#jk.#
+#############",
+        ),
+        72
     );
 }
