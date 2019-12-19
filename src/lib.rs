@@ -613,9 +613,9 @@ impl<T> Board<T> {
         self.data.get_mut(idx)
     }
 
-    pub fn print(&self, display: &dyn Fn(&T) -> char) {
+    pub fn print(&self, display: impl Fn(&T) -> char) {
         for row in self.data.chunks(self.dim.0) {
-            let row = row.iter().map(display).collect::<String>();
+            let row = row.iter().map(&display).collect::<String>();
             println!("{}", row)
         }
     }
