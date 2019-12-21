@@ -2,7 +2,7 @@ use std::{
     cell::Cell,
     fmt,
     io::{self, Read, Write},
-    ops,
+    iter, ops,
 };
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -105,6 +105,19 @@ impl ops::Mul<i64> for Point {
     type Output = Point;
     fn mul(self, rhs: i64) -> Point {
         Point(self.0 * rhs, self.1 * rhs)
+    }
+}
+
+impl ops::BitXor for Point {
+    type Output = Point;
+    fn bitxor(self, rhs: Point) -> Point {
+        Point(self.0 ^ rhs.0, self.1 ^ rhs.1)
+    }
+}
+
+impl ops::BitXorAssign for Point {
+    fn bitxor_assign(&mut self, rhs: Point) {
+        *self = *self ^ rhs
     }
 }
 
@@ -567,6 +580,19 @@ pub struct Board<T> {
     data: Vec<T>,
 }
 
+impl Board<u8> {
+    pub fn from_ascii(text: &str) -> Board<u8> {
+        let height = text.lines().count();
+        let width = text.lines().map(|it| it.len()).max().unwrap();
+        let mut buf = Vec::new();
+        for line in text.lines() {
+            buf.extend(line.bytes());
+            buf.extend(iter::repeat(b' ').take(width - line.len()));
+        }
+        Board::from_elements((width, height), buf)
+    }
+}
+
 impl<T> Board<T> {
     pub fn new(dim: (usize, usize), element: T) -> Board<T>
     where
@@ -632,6 +658,10 @@ impl<T> Board<T> {
             .iter()
             .enumerate()
             .map(move |(idx, val)| (self.to_point(idx), val))
+    }
+
+    pub fn points(&self) -> impl Iterator<Item = Point> + '_ {
+        self.iter().map(|(p, _)| p)
     }
 
     fn to_index(&self, p: Point) -> Option<usize> {
