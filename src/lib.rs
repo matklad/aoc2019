@@ -2,7 +2,7 @@ use std::{
     cell::Cell,
     fmt,
     io::{self, Read, Write},
-    iter, ops,
+    iter, mem, ops,
 };
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -176,6 +176,41 @@ impl Io for StdIo {
     }
     fn write(&mut self, value: i64) -> Result<()> {
         writeln!(self.stdout, "{}", value)?;
+        Ok(())
+    }
+}
+
+pub struct AsciiIo {
+    stdio: StdIo,
+    buf: Vec<u8>,
+}
+
+impl AsciiIo {
+    pub fn new() -> AsciiIo {
+        AsciiIo {
+            stdio: StdIo::new(),
+            buf: Vec::new(),
+        }
+    }
+}
+
+impl Io for AsciiIo {
+    fn read(&mut self) -> Result<i64> {
+        if self.buf.is_empty() {
+            let buf = mem::take(&mut self.buf);
+            let mut buf = String::from_utf8(buf).unwrap();
+            self.stdio.stdin.read_line(&mut buf)?;
+            self.buf = buf.into_bytes();
+            self.buf.reverse();
+        }
+        Ok(self.buf.pop().unwrap().into())
+    }
+    fn write(&mut self, value: i64) -> Result<()> {
+        if value <= 128 {
+            write!(self.stdio.stdout, "{}", value as u8 as char)
+        } else {
+            writeln!(self.stdio.stdout, "non-ASCII: {}", value)
+        }?;
         Ok(())
     }
 }
