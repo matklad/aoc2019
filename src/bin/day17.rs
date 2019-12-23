@@ -9,9 +9,9 @@ fn main() -> Result<()> {
     let mut mem = parse_memory(&input)?;
     mem[0] = 2;
     let mut io = MemIo::new(res.iter().map(|it| *it as i64).collect());
-    let mut cpu = IntCode::new(&mut io, &mut mem);
-    cpu.run();
-    let out = io.into_output();
+    let mut cpu = IntCode::new(io, &mut mem);
+    cpu.run()?;
+    let out = cpu.io.into_output();
     eprintln!("out = {:?}", out);
     let s = String::from_utf8(out.into_iter().map(|it| it as u8).collect()).unwrap();
     eprintln!("{}", s);
@@ -150,11 +150,11 @@ fn is_scaffold(board: &Board<Cell>, pos: Point) -> bool {
 fn read_board() -> Result<(Board<Cell>, Point)> {
     let input = fs::read_to_string("input/day17.in")?;
     let mut mem = parse_memory(&input)?;
-    let mut io = MemIo::new(vec![]);
-    let mut cpu = IntCode::new(&mut io, &mut mem);
-    cpu.run();
+    let io = MemIo::new(vec![]);
+    let mut cpu = IntCode::new(io, &mut mem);
+    cpu.run()?;
 
-    let output = io.into_output();
+    let output = cpu.io.into_output();
     //     let output = "#######...#####
     // #.....#...#...#
     // #.....#...#...#

@@ -13,8 +13,9 @@ fn main() -> Result<()> {
         human: false,
         cnt: 0,
     };
-    let computer = IntCode::new(&mut io, &mut mem);
+    let mut computer = IntCode::new(io, &mut mem);
     computer.run()?;
+    let mut io = computer.io;
     update_display(&mut io.score, &mut io.display, &io.buf);
     print_display(io.score, &io.display);
     Ok(())

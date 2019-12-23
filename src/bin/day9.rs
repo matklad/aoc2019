@@ -1,6 +1,6 @@
 use std::io::{stdin, Read};
 
-use aoc::{parse_memory, IntCode, Result, MemIo, extend_memory};
+use aoc::{extend_memory, parse_memory, IntCode, MemIo, Result};
 
 fn main() -> Result<()> {
     let mut buf = String::new();
@@ -9,10 +9,10 @@ fn main() -> Result<()> {
     let mut mem = parse_memory(&buf)?;
     extend_memory(&mut mem);
 
-    let mut io = MemIo::new(vec![2]);
-    let computer = IntCode::new(&mut io, &mut mem);
+    let io = MemIo::new(vec![2]);
+    let mut computer = IntCode::new(io, &mut mem);
     computer.run()?;
-    println!("{:?}", io.into_output());
+    println!("{:?}", computer.io.into_output());
 
     Ok(())
 }

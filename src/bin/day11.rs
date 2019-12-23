@@ -70,8 +70,8 @@ impl TryFrom<i64> for Color {
 
 fn run(mut prog: Vec<i64>) -> Result<HashMap<Point, Color>> {
     let slot = SlotIo::default();
-    let mut io = &slot;
-    let mut computer = IntCode::new(&mut io, &mut prog);
+    let io = &slot;
+    let mut computer = IntCode::new(io, &mut prog);
 
     let mut robot = Robot {
         pos: Point(0, 0),

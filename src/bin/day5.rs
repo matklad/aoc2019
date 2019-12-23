@@ -8,9 +8,10 @@ fn main() -> Result<()> {
         memory.to_string()
     };
     let mut memory = parse_memory(memory.as_str())?;
-    let mut io = StdIo::new();
-    let computer = IntCode::new(&mut io, &mut memory);
-    computer.run()
+    let io = StdIo::new();
+    let mut computer = IntCode::new(io, &mut memory);
+    computer.run()?;
+    Ok(())
 }
 
 #[test]
@@ -21,9 +22,9 @@ fn test_examples() {
         for (i, o) in tests {
             let mut mem = memory.clone();
             let mut mem_io = MemIo::new(vec![i]);
-            let computer = IntCode::new(&mut mem_io, &mut mem);
+            let mut computer = IntCode::new(mem_io, &mut mem);
             computer.run().unwrap();
-            let output = mem_io.into_output();
+            let output = computer.io.into_output();
             assert_eq!(
                 output,
                 vec![o],

@@ -20,8 +20,7 @@ fn main() -> Result<()> {
 }
 
 fn run(mut mem: Vec<i64>) -> Vec<i64> {
-    let mut io = StdIo::new();
-    IntCode::new(&mut io, &mut mem).run().unwrap();
+    IntCode::new(StdIo::new(), &mut mem).run().unwrap();
     mem
 }
 

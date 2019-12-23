@@ -284,15 +284,15 @@ impl SlotIo {
     }
 }
 
-pub struct IntCode<'a> {
-    io: &'a mut dyn Io,
+pub struct IntCode<'a, IO> {
+    pub io: IO,
     mem: &'a mut [i64],
     ip: i64,
     bp: i64,
 }
 
-impl<'a> IntCode<'a> {
-    pub fn new(io: &'a mut dyn Io, mem: &'a mut [i64]) -> IntCode<'a> {
+impl<'a, IO: Io> IntCode<'a, IO> {
+    pub fn new(io: IO, mem: &'a mut [i64]) -> IntCode<'a, IO> {
         IntCode {
             io,
             mem,
@@ -300,7 +300,7 @@ impl<'a> IntCode<'a> {
             bp: 0,
         }
     }
-    pub fn run(mut self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()> {
         while self.step()? {}
         Ok(())
     }
@@ -524,15 +524,15 @@ pub fn extend_memory(mem: &mut Vec<i64>) {
 }
 
 pub struct StepIo {
-    read_slot: Cell<Option<i64>>,
-    write_slot: Cell<Option<i64>>,
+    read_slot: Option<i64>,
+    write_slot: Option<i64>,
 }
 
 impl Default for StepIo {
     fn default() -> Self {
         StepIo {
-            read_slot: Cell::new(None),
-            write_slot: Cell::new(Some(0)),
+            read_slot: None,
+            write_slot: Some(0),
         }
     }
 }
@@ -555,57 +555,48 @@ impl fmt::Display for WriteFail {
     }
 }
 
-impl Io for &StepIo {
+impl Io for StepIo {
     fn read(&mut self) -> Result<i64> {
         let res = self.read_slot.take().ok_or(ReadFail)?;
         Ok(res)
     }
     fn write(&mut self, value: i64) -> Result<()> {
-        if self.write_slot.get().is_some() {
+        if self.write_slot.is_some() {
             Err(WriteFail)?;
         }
-        self.write_slot.set(Some(value));
+        self.write_slot = Some(value);
         Ok(())
     }
 }
 
-pub struct StepCode<'a> {
-    io: &'a StepIo,
-    cpu: IntCode<'a>,
-}
-
-impl<'a> StepCode<'a> {
-    pub fn new(io: &'a mut &StepIo, mem: &'a mut [i64]) -> StepCode<'a> {
-        let io_copy = &*io;
-        StepCode {
-            io: io_copy,
-            cpu: IntCode::new(io, mem),
-        }
+impl<'a> IntCode<'a, StepIo> {
+    pub fn new_step(mem: &'a mut [i64]) -> Self {
+        IntCode::new(StepIo::default(), mem)
     }
 
     pub fn input(&mut self, value: i64) {
         loop {
-            match self.cpu.step() {
+            match self.step() {
                 Ok(_) => (),
                 Err(e) if e.downcast_ref::<ReadFail>().is_some() => break,
                 Err(_) => panic!(),
             }
         }
-        self.io.read_slot.set(Some(value));
-        self.cpu.step().unwrap();
+        self.io.read_slot = Some(value);
+        self.step().unwrap();
     }
 
     pub fn output(&mut self) -> i64 {
         loop {
-            match self.cpu.step() {
+            match self.step() {
                 Ok(_) => (),
                 Err(e) if e.downcast_ref::<WriteFail>().is_some() => break,
                 Err(_) => panic!(),
             }
         }
-        self.io.write_slot.set(None);
-        self.cpu.step().unwrap();
-        self.io.write_slot.get().unwrap()
+        self.io.write_slot = None;
+        self.step().unwrap();
+        self.io.write_slot.unwrap()
     }
 }
 

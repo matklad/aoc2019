@@ -1,6 +1,6 @@
-use std::{io::Read};
+use std::io::Read;
 
-use aoc::{parse_memory, IntCode,  Result, SlotIo};
+use aoc::{parse_memory, IntCode, Result, SlotIo};
 
 fn main() -> Result<()> {
     let mut buf = String::new();
@@ -27,7 +27,7 @@ fn run(program: &[i64], phases: &[i64]) -> i64 {
         .iter()
         .zip(&mut amps)
         .map(|(phase, (mem, io))| {
-            let mut ic = IntCode::new(&mut *io, mem.as_mut_slice());
+            let mut ic = IntCode::new(*io, mem.as_mut_slice());
             slot.set(*phase);
             while !slot.clear_read() {
                 assert!(ic.step().unwrap());

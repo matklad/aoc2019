@@ -1,13 +1,12 @@
 use std::fs;
 
-use aoc::{parse_memory, read_stdin_to_string, IntCode, MemIo, Point, Result};
+use aoc::{parse_memory, IntCode, MemIo, Point, Result};
 
 fn main() -> Result<()> {
     let prog = fs::read_to_string("./input/day19.in")?;
     let prog = parse_memory(&prog)?;
     let ctx = Ctx { prog };
 
-    let range = ctx.range_at_y(100);
     let mut lo = 10;
     let mut hi = 10000;
     while lo < hi {
@@ -31,10 +30,9 @@ struct Ctx {
 impl Ctx {
     fn is_covered(&self, point: Point) -> bool {
         let mut prog = self.prog.clone();
-        let mut io = MemIo::new(vec![point.0, point.1]);
-        let mut cpu = IntCode::new(&mut io, &mut prog);
-        cpu.run();
-        let output = io.into_output();
+        let mut cpu = IntCode::new(MemIo::new(vec![point.0, point.1]), &mut prog);
+        cpu.run().unwrap();
+        let output = cpu.io.into_output();
         assert!(output.len() == 1);
         output[0] == 1
     }

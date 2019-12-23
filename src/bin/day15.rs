@@ -1,13 +1,12 @@
 use std::fs;
 
-use aoc::{parse_memory, Board, Direction, Point, Result, StepCode, StepIo};
+use aoc::{parse_memory, Board, Direction, IntCode, Point, Result, StepIo};
 
 fn main() -> Result<()> {
     let prog = fs::read_to_string("./input/day15.in")?;
     let mut prog = parse_memory(&prog)?;
 
-    let mut io = &StepIo::default();
-    let cpu = StepCode::new(&mut io, &mut prog);
+    let cpu = IntCode::new_step(&mut prog);
     let mut ctx = Ctx::new(cpu, (50, 50));
     ctx.dfs();
     ctx.print();
@@ -43,13 +42,13 @@ fn bfs(board: &Board<Cell>, start: Point) -> Board<Option<usize>> {
 }
 
 struct Ctx<'a> {
-    cpu: StepCode<'a>,
+    cpu: IntCode<'a, StepIo>,
     board: Board<Cell>,
     pos: Point,
 }
 
 impl Ctx<'_> {
-    fn new(cpu: StepCode, dim: (usize, usize)) -> Ctx {
+    fn new(cpu: IntCode<StepIo>, dim: (usize, usize)) -> Ctx {
         let mut board = Board::new(dim, Cell::Fog).move_origin_to_center();
         let pos = Point::default();
         board[pos] = Cell::Empty;
@@ -92,7 +91,7 @@ impl Ctx<'_> {
     }
 
     fn print(&self) {
-        self.board.print(&|cell| match cell {
+        self.board.print(|cell| match cell {
             Cell::Empty => '.',
             Cell::Fog => ' ',
             Cell::Wall => 'X',
