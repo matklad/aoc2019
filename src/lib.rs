@@ -600,6 +600,7 @@ impl<'a> IntCode<'a, StepIo> {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Board<T> {
     dim: (usize, usize),
     origin: Point,
