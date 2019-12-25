@@ -108,6 +108,13 @@ impl ops::Mul<i64> for Point {
     }
 }
 
+impl ops::Div<i64> for Point {
+    type Output = Point;
+    fn div(self, rhs: i64) -> Point {
+        Point(self.0 / rhs, self.1 / rhs)
+    }
+}
+
 impl ops::BitXor for Point {
     type Output = Point;
     fn bitxor(self, rhs: Point) -> Point {
